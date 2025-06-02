@@ -1,0 +1,17 @@
+{
+  "name": "command-output-summarizer",
+  "version": "0.0.0",
+  "description": "Summarize command output into status, evidence, next action and failure context.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edilec/command-output-summarizer"
+  }
+}
