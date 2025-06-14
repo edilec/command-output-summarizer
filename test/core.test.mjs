@@ -68,3 +68,63 @@ test('a salient error line is located without copying its secret-shaped text', (
   });
   assert.equal(JSON.stringify(report).includes('SYNTHETIC_SECRET_CANARY'), false);
 });
+
+test('an empty export and unsupported result fields are incomplete, not vacuous pass', () => {
+  const empty = summarize({ schemaVersion: '1', results: [] }, { now: () => 0 });
+  assert.equal(empty.status, 'incomplete');
+  assert.equal(empty.summary.checked, 0);
+  assert.deepEqual(empty.findings.map(f => f.ruleId), ['export-invalid']);
+  const document = clean();
+  document.results[0].command = 'token=SYNTHETIC_SECRET_CANARY';
+  const extra = summarize(document, { now: () => 0 });
+  assert.equal(extra.status, 'incomplete');
+  assert.deepEqual(extra.findings.map(f => f.ruleId), ['result-invalid']);
+  assert.equal(JSON.stringify(extra).includes('SYNTHETIC_SECRET_CANARY'), false);
+});
+
+test('records bound accepts exactly 128 results and refuses the 129th', () => {
+  const result = clean().results[0];
+  const at = summarize({ schemaVersion: '1', results: Array.from({ length: 128 }, () => ({ ...result })) }, { now: () => 0 });
+  const over = summarize({ schemaVersion: '1', results: Array.from({ length: 129 }, () => ({ ...result })) }, { now: () => 0 });
+  assert.equal(at.status, 'pass');
+  assert.equal(at.summary.checked, 128);
+  assert.equal(over.status, 'incomplete');
+  assert.ok(over.findings.some(f => f.ruleId === 'limit-exceeded' && f.location.pointer === '/limits/maxResults'));
+});
+
+test('stream unit and line bounds are silent at N and incomplete at N plus one', () => {
+  const limits = { maxStreamUnits: 5, maxLines: 2 };
+  const document = clean();
+  document.results[0].stdout = 'ab\ncd';
+  assert.equal(summarize(document, { now: () => 0, limits }).status, 'pass');
+  document.results[0].stdout = 'ab\ncd!';
+  let report = summarize(document, { now: () => 0, limits });
+  assert.equal(report.status, 'incomplete');
+  assert.ok(report.findings.some(f => f.location.pointer === '/limits/maxStreamUnits'));
+  document.results[0].stdout = 'a\nb\nc';
+  report = summarize(document, { now: () => 0, limits });
+  assert.equal(report.status, 'incomplete');
+  assert.ok(report.findings.some(f => f.location.pointer === '/limits/maxLines'));
+});
+
+test('injected clock accepts exact deadline but refuses N plus one and invalid readings', () => {
+  const limits = { timeoutMs: 1 };
+  const clock = end => { let calls = 0; return () => calls++ === 0 ? 0 : end; };
+  assert.equal(summarize(clean(), { now: clock(1), limits }).status, 'pass');
+  const late = summarize(clean(), { now: clock(2), limits });
+  assert.equal(late.status, 'incomplete');
+  assert.ok(late.findings.some(f => f.ruleId === 'limit-exceeded' && f.location.pointer === '/limits/timeoutMs'));
+  assert.equal(summarize(clean(), { now: () => NaN }).status, 'incomplete');
+  const backward = (() => { let calls = 0; return () => calls++ === 0 ? 1 : 0; })();
+  assert.equal(summarize(clean(), { now: backward }).status, 'incomplete');
+});
+
+test('finding pointers use UTF-16 code-unit order for two different result indexes', () => {
+  const result = clean().results[0];
+  const results = Array.from({ length: 11 }, () => ({ ...result }));
+  results[2].exitCode = null;
+  results[10].exitCode = null;
+  const report = summarize({ schemaVersion: '1', results }, { now: () => 0 });
+  assert.equal(report.status, 'incomplete');
+  assert.deepEqual(report.findings.map(f => f.location.pointer), ['/results/10/exitCode', '/results/2/exitCode']);
+});
