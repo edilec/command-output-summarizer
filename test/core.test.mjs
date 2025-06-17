@@ -119,6 +119,13 @@ test('injected clock accepts exact deadline but refuses N plus one and invalid r
   assert.equal(summarize(clean(), { now: backward }).status, 'incomplete');
 });
 
+test('the final clock reading can invalidate an otherwise completed one-result run', () => {
+  const readings = [0, 0, 2];
+  const report = summarize(clean(), { now: () => readings.shift() ?? 2, limits: { timeoutMs: 1 } });
+  assert.equal(report.status, 'incomplete');
+  assert.ok(report.findings.some(f => f.ruleId === 'limit-exceeded' && f.location.pointer === '/limits/timeoutMs'));
+});
+
 test('finding pointers use UTF-16 code-unit order for two different result indexes', () => {
   const result = clean().results[0];
   const results = Array.from({ length: 11 }, () => ({ ...result }));

@@ -1,13 +1,15 @@
 {
   "name": "command-output-summarizer",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Summarize command output into status, evidence, next action and failure context.",
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test"
+    "lint": "node --check src/index.mjs && node --check src/json.mjs && node --check bin/command-output-summarizer.mjs && node --check support/deny-network.mjs",
+    "test": "node --import ./support/deny-network.mjs --test",
+    "check": "npm run lint && npm test"
   },
   "license": "MIT",
   "repository": {

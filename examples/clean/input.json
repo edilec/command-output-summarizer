@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "exitCode": 0,
+      "stdout": "synthetic build complete",
+      "stderr": "",
+      "stdoutTruncated": false,
+      "stderrTruncated": false
+    }
+  ]
+}

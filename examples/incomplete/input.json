@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "error: synthetic partial output",
+      "stdoutTruncated": false,
+      "stderrTruncated": true
+    }
+  ]
+}

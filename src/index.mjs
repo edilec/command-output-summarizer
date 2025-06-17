@@ -2,7 +2,7 @@ export const TOOL_ID = 'command-output-summarizer';
 export class ConfigError extends Error {}
 
 export const DEFAULT_LIMITS = Object.freeze({
-  maxResults: 128, maxStreamUnits: 65536, maxLines: 4096, timeoutMs: 2000,
+  maxBytes: 1048576, maxResults: 128, maxStreamUnits: 65536, maxLines: 4096, timeoutMs: 2000,
 });
 
 const RULE_SEVERITY = Object.freeze({
@@ -13,12 +13,32 @@ const RULE_SEVERITY = Object.freeze({
   'export-invalid': 'warning',
   'limit-exceeded': 'warning',
   'clock-invalid': 'warning',
+  'input-unreadable': 'warning',
+  'input-invalid': 'warning',
+  'path-outside-root': 'warning',
+  'input-alias-unsupported': 'warning',
 });
 const byCodeUnit = (a, b) => a === b ? 0 : a < b ? -1 : 1;
 const FILENAME = 'input.json';
 const safePath = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/u;
-const isSafePath = value => typeof value === 'string' && value.length <= 256 && safePath.test(value) &&
+export const isSafePath = value => typeof value === 'string' && value.length <= 256 && safePath.test(value) &&
   !value.split('/').some(part => !part || part === '.');
+
+export function incompleteInput(file, ruleId, pointer = '') {
+  if (!isSafePath(file) || !['input-unreadable', 'input-invalid', 'path-outside-root',
+    'input-alias-unsupported', 'limit-exceeded'].includes(ruleId)) throw new ConfigError('Invalid input report.');
+  const message = {
+    'input-unreadable': 'Named input could not be read or decoded.',
+    'input-invalid': 'Named input is not a supported JSON export.',
+    'path-outside-root': 'Named input resolves outside the declared root.',
+    'input-alias-unsupported': 'Named input is an alias with ambiguous provenance.',
+    'limit-exceeded': 'Named input exceeds the byte limit.',
+  }[ruleId];
+  return { schemaVersion: '1', tool: TOOL_ID, status: 'incomplete',
+    summary: { checked: 0, errors: 0, warnings: 1, results: 0 },
+    findings: [{ ruleId, severity: RULE_SEVERITY[ruleId], message,
+      location: { file, ...(pointer ? { pointer } : {}) } }], results: [] };
+}
 
 function checkedLimits(limits) {
   if (!limits || typeof limits !== 'object' || Array.isArray(limits)) throw new ConfigError('Invalid limits.');
@@ -134,6 +154,7 @@ export function summarize(document, { now = Date.now, file = FILENAME, limits = 
             : 'No follow-up is indicated by the saved exit status.' });
     }
   }
+  tick();
   findings.sort((a, b) => byCodeUnit(a.location.file, b.location.file) ||
     byCodeUnit(a.location.pointer, b.location.pointer) || byCodeUnit(a.ruleId, b.ruleId));
   const errors = findings.filter(f => f.severity === 'error').length;
