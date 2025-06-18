@@ -57,6 +57,19 @@ test('truncated output makes the run incomplete but retains a proven failure', (
   assert.equal(JSON.stringify(report).includes('SYNTHETIC_SECRET_CANARY'), false);
 });
 
+test('a zero exit with truncated or missing stream evidence is not called success', () => {
+  for (const change of [{ stdoutTruncated: true }, { stderr: undefined }]) {
+    const document = clean();
+    Object.assign(document.results[0], change);
+    const report = summarize(document, { now: () => 0 });
+    assert.equal(report.status, 'incomplete');
+    assert.equal(report.results[0].disposition, 'unknown');
+    assert.equal(report.results[0].hint, 'Obtain a complete saved result before relying on this summary.');
+    assert.ok(report.findings.some(f => ['output-truncated', 'result-invalid'].includes(f.ruleId)));
+  }
+  assert.equal(summarize(clean(), { now: () => 0 }).results[0].disposition, 'success');
+});
+
 test('a salient error line is located without copying its secret-shaped text', () => {
   const document = clean();
   document.results[0].exitCode = 1;

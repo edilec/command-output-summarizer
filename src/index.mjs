@@ -99,14 +99,17 @@ export function summarize(document, { now = Date.now, file = FILENAME, limits = 
         add('result-invalid', pointer, 'Saved command result is unsupported.');
         continue;
       }
+      let rowIncomplete = false;
       if (Object.keys(item).some(key => !['exitCode', 'stdout', 'stderr', 'stdoutTruncated', 'stderrTruncated'].includes(key))) {
         add('result-invalid', pointer, 'Saved command result has unsupported fields.');
+        rowIncomplete = true;
       }
       const exitCode = item.exitCode;
       const knownExit = Number.isInteger(exitCode) && exitCode >= 0 && exitCode <= 255;
       const missingExit = exitCode === null;
       if (!knownExit && !missingExit) {
         add('result-invalid', `${pointer}/exitCode`, 'Saved exit status is unsupported.');
+        rowIncomplete = true;
       }
       if (knownExit) checked++;
       if (missingExit) add('exit-unavailable', `${pointer}/exitCode`, 'Saved exit status was not obtained.');
@@ -117,13 +120,18 @@ export function summarize(document, { now = Date.now, file = FILENAME, limits = 
         if (typeof item[stream] !== 'string' || typeof item[`${stream}Truncated`] !== 'boolean') {
           add('result-invalid', `${pointer}/${stream}`, 'Saved output evidence is unsupported.');
           malformed = true;
+          rowIncomplete = true;
         } else {
-          if (item[`${stream}Truncated`]) add('output-truncated', `${pointer}/${stream}`, 'Saved output was truncated by its exporter.');
+          if (item[`${stream}Truncated`]) {
+            add('output-truncated', `${pointer}/${stream}`, 'Saved output was truncated by its exporter.');
+            rowIncomplete = true;
+          }
           if (item[stream].length > bounds.maxStreamUnits) {
             if (!findings.some(f => f.ruleId === 'limit-exceeded' && f.location.pointer === '/limits/maxStreamUnits')) {
               add('limit-exceeded', '/limits/maxStreamUnits', 'Saved output stream exceeds unit limit.');
             }
             malformed = true;
+            rowIncomplete = true;
           } else {
             streamLines[stream] = item[stream].split(/\r\n|\r|\n|\u2028|\u2029/u);
             if (streamLines[stream].length > bounds.maxLines) {
@@ -131,11 +139,12 @@ export function summarize(document, { now = Date.now, file = FILENAME, limits = 
                 add('limit-exceeded', '/limits/maxLines', 'Saved output stream exceeds line limit.');
               }
               malformed = true;
+              rowIncomplete = true;
             }
           }
         }
       }
-      const disposition = knownExit ? exitCode === 0 ? 'success' : 'failure' : 'unknown';
+      const disposition = knownExit ? exitCode === 0 ? rowIncomplete ? 'unknown' : 'success' : 'failure' : 'unknown';
       let salient = null;
       if (knownExit && exitCode !== 0 && !malformed) {
         for (const stream of ['stderr', 'stdout']) {
