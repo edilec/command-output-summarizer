@@ -57,6 +57,26 @@ test('a missing or malformed named input yields incomplete JSON, not a usage err
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('a synthetic secret-shaped input filename is not echoed in report locations', () => {
+  const root = mkdtempSync(join(tmpdir(), 'command-output-name-'));
+  const name = 'token-SYNTHETIC_SECRET_CANARY.json';
+  try {
+    writeFileSync(join(root, name), JSON.stringify({ schemaVersion: '1', results: [
+      { exitCode: 7, stdout: '', stderr: '', stdoutTruncated: false, stderrTruncated: false },
+    ] }));
+    const failed = run('--root', root, '--input', name);
+    assert.equal(failed.status, 1);
+    assert.equal(failed.stdout.includes('SYNTHETIC_SECRET_CANARY'), false);
+    assert.equal(failed.stderr.includes('SYNTHETIC_SECRET_CANARY'), false);
+    assert.equal(JSON.parse(failed.stdout).findings[0].location.file, 'input');
+    writeFileSync(join(root, name), '{ invalid synthetic JSON');
+    const invalid = run('--root', root, '--input', name);
+    assert.equal(invalid.status, 2);
+    assert.equal(invalid.stdout.includes('SYNTHETIC_SECRET_CANARY'), false);
+    assert.equal(JSON.parse(invalid.stdout).findings[0].location.file, 'input');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('a named input symlink cannot pull evidence from outside the real root', () => {
   const root = mkdtempSync(join(tmpdir(), 'command-output-root-'));
   const outside = mkdtempSync(join(tmpdir(), 'command-output-outside-'));

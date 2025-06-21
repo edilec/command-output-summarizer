@@ -76,7 +76,9 @@ copied from output.
 The JSON envelope has `schemaVersion`, `tool`, `status`, `summary`, `findings`
 and `results`. Each result row has its one-based ordinal, safe disposition,
 optional salient-line class and pointer, and fixed hint. Findings sort by
-UTF-16 code unit over file, pointer and rule ID. The clock is injected via
+UTF-16 code unit over file, pointer and rule ID. The single named document is
+identified by the logical `input` location label and JSON pointers; its
+supplied filename is not echoed. The clock is injected via
 `summarize(document, { now })` and never read from output text.
 
 | Exit | stdout | Meaning |

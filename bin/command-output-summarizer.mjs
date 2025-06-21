@@ -45,7 +45,7 @@ function reportFor(options) {
   let document;
   try { document = parseStrictJson(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
   catch { return incompleteInput(file, 'input-invalid'); }
-  return summarize(document, { file });
+  return summarize(document);
 }
 
 try {
