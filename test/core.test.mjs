@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summarize } from '../src/index.mjs';
+import { ConfigError, summarize } from '../src/index.mjs';
 
 const clean = () => ({
   schemaVersion: '1',
@@ -118,6 +118,14 @@ test('stream unit and line bounds are silent at N and incomplete at N plus one',
   report = summarize(document, { now: () => 0, limits });
   assert.equal(report.status, 'incomplete');
   assert.ok(report.findings.some(f => f.location.pointer === '/limits/maxLines'));
+});
+
+test('inherited object property names are not accepted as limit overrides', () => {
+  for (const key of ['toString', 'constructor', '__proto__']) {
+    const limits = JSON.parse(`{"${key}":1}`);
+    assert.throws(() => summarize(clean(), { now: () => 0, limits }), ConfigError);
+  }
+  assert.equal(summarize(clean(), { now: () => 0, limits: { maxResults: 1 } }).status, 'pass');
 });
 
 test('injected clock accepts exact deadline but refuses N plus one and invalid readings', () => {
