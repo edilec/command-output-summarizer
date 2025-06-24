@@ -98,11 +98,17 @@ test('an empty export and unsupported result fields are incomplete, not vacuous 
 test('records bound accepts exactly 128 results and refuses the 129th', () => {
   const result = clean().results[0];
   const at = summarize({ schemaVersion: '1', results: Array.from({ length: 128 }, () => ({ ...result })) }, { now: () => 0 });
-  const over = summarize({ schemaVersion: '1', results: Array.from({ length: 129 }, () => ({ ...result })) }, { now: () => 0 });
+  const extra = [...Array.from({ length: 128 }, () => ({ ...result })), { ...result, exitCode: 7 }];
+  const over = summarize({ schemaVersion: '1', results: extra }, { now: () => 0 });
   assert.equal(at.status, 'pass');
   assert.equal(at.summary.checked, 128);
+  assert.equal(at.results.length, 128);
   assert.equal(over.status, 'incomplete');
+  assert.equal(over.summary.results, 129);
+  assert.equal(over.summary.checked, 128);
+  assert.equal(over.results.length, 128);
   assert.ok(over.findings.some(f => f.ruleId === 'limit-exceeded' && f.location.pointer === '/limits/maxResults'));
+  assert.ok(!over.findings.some(f => f.ruleId === 'exit-nonzero'));
 });
 
 test('stream unit and line bounds are silent at N and incomplete at N plus one', () => {
