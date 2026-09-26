@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "exitCode": 7,
+      "stdout": "",
+      "stderr": "error: synthetic failure",
+      "stdoutTruncated": false,
+      "stderrTruncated": false
+    }
+  ]
+}
